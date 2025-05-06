@@ -4,54 +4,67 @@ import matplotlib.pyplot as plt
 from tkinter import messagebox
 import sympy as sp
 import cv2
+from PIL import Image
 import pytesseract
 from tkinter import Tk, Button, Label, Text, filedialog, Scrollbar, END
 def picture():
     def load_image():
-        file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg;*.jpeg;*.png;*.bmp")])
+        file_path = filedialog.askopenfilename(
+            filetypes=[("Image files", "*.jpg;*.jpeg;*.png;*.bmp")]
+        )
         if not file_path:
-            print("Файл не выбран.")  # Отладочное сообщение
+            messagebox.showwarning("Предупреждение", "Файл не выбран.")
             return
 
-        print(f"Выбранный файл: {file_path}")  # Отладочное сообщение
+        try:
+            # Попробуем открыть через OpenCV
+            image = cv2.imread(file_path)
+            if image is None:
+                # Если OpenCV не смог, попробуем через PIL
+                pil_image = Image.open(file_path)
+                image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-        # Загрузка изображения
-        image = cv2.imread(file_path)
-        if image is None:
-            messagebox.showerror("Ошибка", "Не удалось загрузить изображение.")
-            print("Ошибка: изображение не загружено.")  # Отладочное сообщение
-            return root3.destroy()
+            # Преобразование в оттенки серого
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            # Применение размытия для уменьшения шума
+            blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+            # Адаптивное пороговое преобразование
+            thresh_image = cv2.adaptiveThreshold(
+                blurred_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY_INV, 11, 2
+            )
 
-        print("Изображение успешно загружено.")  # Отладочное сообщение
+            # Инвертирование изображения
+            inverted_image = cv2.bitwise_not(thresh_image)
 
-        # Преобразование в оттенки серого
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        # Применение размытия для уменьшения шума
-        blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
-        # Использование адаптивного порогового преобразования для лучшего контраста математических символов
-        thresh_image = cv2.adaptiveThreshold(blurred_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                             cv2.THRESH_BINARY_INV, 11, 2)
+            # Разрешенные символы
+            whitelist_chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+-=()[]{}^*/√,.'
 
-        # Инвертирование изображения (Tesseract читает черный текст на белом фоне)
-        inverted_image = cv2.bitwise_not(thresh_image)
+            custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=' + whitelist_chars
 
-        # Разрешенные символы: цифры, буквы и общие математические символы
-        whitelist_chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+-=()[]{}^*/√,.'
+            # Распознавание текста
+            text = pytesseract.image_to_string(inverted_image, lang='eng', config=custom_config)
 
-        custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=' + whitelist_chars
+            # Очистка и вставка распознанного текста
+            text_output.delete(1.0, END)
+            text_output.insert(END, text)
 
-        # Распознавание текста
-        text = pytesseract.image_to_string(inverted_image, lang='eng', config=custom_config)
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось обработать изображение:\n{str(e)}")
+            return
 
-        # Очистка и вставка распознанного текста в текстовое поле
-        text_output.delete(1.0, END)
-        text_output.insert(END, text)
-
-
-    # Настройка Tkinter
+    # Настройка окна OCR
     root3 = Tk()
-    root3.title("OCR для математических выражений")
+    root3.title("Распознавание математических выражений")
     root3.geometry("650x450")
+
+    # Проверка наличия Tesseract
+    try:
+        pytesseract.get_tesseract_version()
+    except:
+        messagebox.showerror("Ошибка", "Tesseract OCR не установлен или не добавлен в PATH")
+        root3.destroy()
+        return
 
     load_button = Button(root3, text="Выбрать изображение с примером", command=load_image)
     load_button.pack(pady=10)
