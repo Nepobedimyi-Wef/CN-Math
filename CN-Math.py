@@ -6,7 +6,21 @@ import sympy as sp
 import cv2
 from PIL import Image
 import pytesseract
+import re
 from tkinter import Tk, Button, Label, Text, filedialog, Scrollbar, END
+def evaluate_expression(expression):
+    try:
+        # Удаляем все символы, кроме допустимых для вычисления
+        expression = re.sub(r'[^0-9+\-*/().]', '', expression)
+        if not expression:
+            return "Нет выражения для вычисления"
+
+        # Вычисляем математическое выражение безопасно
+        result = eval(expression)
+        return result
+    except Exception as e:
+        return f"Ошибка вычисления: {str(e)}"
+
 def picture():
     def load_image():
         file_path = filedialog.askopenfilename(
@@ -17,48 +31,38 @@ def picture():
             return
 
         try:
-            # Попробуем открыть через OpenCV
-            image = cv2.imread(file_path)
-            if image is None:
-                # Если OpenCV не смог, попробуем через PIL
-                pil_image = Image.open(file_path)
-                image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+            # Используем PIL для загрузки изображения с учетом любых путей и символов
+            pil_image = Image.open(file_path).convert('RGB')
+            # Конвертируем PIL image в OpenCV формат
+            image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-            # Преобразование в оттенки серого
             gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            # Применение размытия для уменьшения шума
             blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
-            # Адаптивное пороговое преобразование
             thresh_image = cv2.adaptiveThreshold(
                 blurred_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                 cv2.THRESH_BINARY_INV, 11, 2
             )
 
-            # Инвертирование изображения
             inverted_image = cv2.bitwise_not(thresh_image)
 
-            # Разрешенные символы
             whitelist_chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+-=()[]{}^*/√,.'
 
             custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=' + whitelist_chars
 
-            # Распознавание текста
             text = pytesseract.image_to_string(inverted_image, lang='eng', config=custom_config)
 
-            # Очистка и вставка распознанного текста
-            text_output.delete(1.0, END)
-            text_output.insert(END, text)
+            text_output.config(text=f"Распознанный текст:\n{text.strip()}")
+
+            result = evaluate_expression(text)
+            result_label.config(text=f"Результат: {result}")
 
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось обработать изображение:\n{str(e)}")
-            return
 
-    # Настройка окна OCR
     root3 = Tk()
     root3.title("Распознавание математических выражений")
     root3.geometry("650x450")
 
-    # Проверка наличия Tesseract
     try:
         pytesseract.get_tesseract_version()
     except:
@@ -69,29 +73,24 @@ def picture():
     load_button = Button(root3, text="Выбрать изображение с примером", command=load_image)
     load_button.pack(pady=10)
 
-    text_output = Text(root3, wrap='word', height=20)
+    text_output = Label(root3, text="Здесь будет распознанный текст", wraplength=620, justify='left', anchor='nw')
     text_output.pack(expand=True, fill='both', padx=10, pady=10)
 
-    scrollbar = Scrollbar(text_output)
-    scrollbar.pack(side='right', fill='y')
-    text_output.config(yscrollcommand=scrollbar.set)
-    scrollbar.config(command=text_output.yview)
+    result_label = Label(root3, text="", font=("Arial", 14), fg='blue')
+    result_label.pack(pady=10)
 
     root3.mainloop()
 
 
 def plot_function(func_str, x_range=(-10, 10), num_points=1000):
-    # Создаем массив значений x
     x = np.linspace(x_range[0], x_range[1], num_points)
 
-    # Используем eval для вычисления значений функции
     try:
         y = eval(func_str)
     except Exception as e:
         print(f"Ошибка при вычислении функции: {e}")
         return
 
-    # Строим график
     plt.figure(figsize=(10, 5))
     plt.plot(x, y, label=f'y = {func_str}')
     plt.title('График функции')
@@ -104,11 +103,11 @@ def plot_function(func_str, x_range=(-10, 10), num_points=1000):
     plt.show()
 
 def on_plot_button_click():
-    func_input = entry.get()  # Получаем текст из текстового поля
+    func_input = entry.get()
     plot_function(func_input)
 
 root = tk.Tk()
-root.title("World of Math")
+root.title("CN-MATH")
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
 root.geometry(f"{screen_width}x{screen_height}")
@@ -116,13 +115,10 @@ root.geometry(f"{screen_width}x{screen_height}")
 def open():
 
     def solve_equation(equation_str, variable_str):
-        # Определяем переменную
         variable = sp.symbols(variable_str)
 
-        # Преобразуем строку уравнения в символьное выражение
         equation = sp.sympify(equation_str)
 
-        # Решаем уравнение
         solutions = sp.solve(equation, variable)
 
         return solutions
@@ -132,17 +128,18 @@ def open():
         variable = variable_entry.get()
 
         try:
+            root1.destroy()
             solutions = solve_equation(equation, variable)
             result = f"Решения уравнения {equation} = 0: {solutions}"
             messagebox.showinfo("Решение", result)
         except Exception as e:
+            root1.destroy()
             messagebox.showerror("Ошибка", str(e))
 
-    # Создаем окно
+
     root1 = tk.Tk()
     root1.title("Решение уравнений")
 
-    # Создаем виджеты
     equation_label = tk.Label(root1, text="Введите уравнение равное 0:")
     equation_label.pack()
 
@@ -162,7 +159,6 @@ def open():
 label = tk.Label(root, text="Введите функцию для построения графика")
 label.place(x=100, y=130)
 
-# Текстовое поле для ввода функции
 entry = tk.Entry(root, width=50)
 entry.place(x=100, y=160)
 
@@ -182,9 +178,15 @@ button2 = tk.Button(root, text="Решение уравнения", height=15, w
                     activeforeground='#000', cursor='hand2', command=open)
 button2.place(x=630, y=200)
 
-button3 = tk.Button(root, text="Калькулятор", height=15, width=40, fg='#000',
+button3 = tk.Button(root, text="Калькулятор по фотографии", height=15, width=40, fg='#000',
                     bg='#fff', activebackground='#000',
                     activeforeground='#000', cursor='hand2', command=picture)
 button3.place(x=1160, y=200)
+
+button4 = tk.Button(root, text="Калькулятор", height=6, width=28, fg='#000',
+                    bg='#fff', activebackground='#000',
+                    activeforeground='#000', cursor='hand2',)
+button4.place(x=671, y=550)
+
 
 root.mainloop()
