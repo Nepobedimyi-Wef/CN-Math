@@ -58,6 +58,11 @@ def picture():
     root3 = Tk()
     root3.title("Распознавание математических выражений")
     root3.geometry("650x450")
+    root.withdraw()
+
+    def on_closing():
+        root.deiconify()
+        root3.destroy()
 
     try:
         pytesseract.get_tesseract_version()
@@ -74,7 +79,7 @@ def picture():
 
     result_label = Label(root3, text="", font=("Arial", 14), fg='blue')
     result_label.pack(pady=10)
-
+    root3.protocol("WM_DELETE_WINDOW", on_closing)
     root3.mainloop()
 
 
@@ -101,7 +106,7 @@ def plot_function(func_str, x_range=(-10, 10), num_points=1000):
 
 
 def on_plot_button_click():
-    root.withdraw()  # Скрываем root вместо уничтожения
+    root.withdraw()
     root4 = tk.Tk()
     root4.title("Построение графика")
     root4.geometry("600x140")
@@ -128,7 +133,7 @@ screen_height = root.winfo_screenheight()
 root.geometry(f"{screen_width}x{screen_height}")
 
 def open():
-
+    root.withdraw()
     def solve_equation(equation_str, variable_str):
         variable = sp.symbols(variable_str)
 
@@ -137,7 +142,9 @@ def open():
         solutions = sp.solve(equation, variable)
 
         return solutions
-
+    def on_closing():
+        root1.destroy()
+        root.deiconify()
     def on_solve():
         equation = equation_entry.get()
         variable = variable_entry.get()
@@ -147,17 +154,17 @@ def open():
             solutions = solve_equation(equation, variable)
             result = f"Решения уравнения {equation} = 0: {solutions}"
             messagebox.showinfo("Решение", result)
+            root.deiconify()
         except Exception as e:
             root1.destroy()
             messagebox.showerror("Ошибка", str(e))
-
+            root.deiconify()
 
     root1 = tk.Tk()
     root1.title("Решение уравнений")
-
     equation_label = tk.Label(root1, text="Введите уравнение равное 0:")
     equation_label.pack()
-
+    root1.protocol("WM_DELETE_WINDOW", on_closing)
     equation_entry = tk.Entry(root1, width=40)
     equation_entry.pack()
 
@@ -172,17 +179,25 @@ def open():
     root1.mainloop()
 
 def calc():
+    root.withdraw()
     def calculate(entry, output_label):
+        def on_closing():
+            root.deiconify()
+            root5.destroy()
         try:
             expression = entry.get()
             result = eval(expression)  # Вычисляем выражение (опасно для произвольного кода!)
             output_label.config(text=f"Результат: {result}")
+            root5.protocol("WM_DELETE_WINDOW", on_closing)
         except SyntaxError:
             messagebox.showerror("Ошибка", "Неверный синтаксис выражения!")
+            root5.protocol("WM_DELETE_WINDOW", on_closing)
         except ZeroDivisionError:
             messagebox.showerror("Ошибка", "Деление на ноль!")
+            root5.protocol("WM_DELETE_WINDOW", on_closing)
         except Exception as e:
             messagebox.showerror("Ошибка", f"Ошибка вычисления: {e}")
+            root5.protocol("WM_DELETE_WINDOW", on_closing)
 
     def create_calculator(window):
         window.title("Калькулятор")
