@@ -10,12 +10,10 @@ import re
 from tkinter import Tk, Button, Label, Text, filedialog, Scrollbar, END
 def evaluate_expression(expression):
     try:
-        # Удаляем все символы, кроме допустимых для вычисления
         expression = re.sub(r'[^0-9+\-*/().]', '', expression)
         if not expression:
             return "Нет выражения для вычисления"
 
-        # Вычисляем математическое выражение безопасно
         result = eval(expression)
         return result
     except Exception as e:
@@ -31,9 +29,7 @@ def picture():
             return
 
         try:
-            # Используем PIL для загрузки изображения с учетом любых путей и символов
             pil_image = Image.open(file_path).convert('RGB')
-            # Конвертируем PIL image в OpenCV формат
             image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
             gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -84,11 +80,11 @@ def picture():
 
 def plot_function(func_str, x_range=(-10, 10), num_points=1000):
     x = np.linspace(x_range[0], x_range[1], num_points)
-
     try:
         y = eval(func_str)
     except Exception as e:
-        print(f"Ошибка при вычислении функции: {e}")
+        messagebox.showinfo('Ошибка',f"Ошибка при вычислении функции: {e}")
+        root.deiconify()
         return
 
     plt.figure(figsize=(10, 5))
@@ -101,11 +97,30 @@ def plot_function(func_str, x_range=(-10, 10), num_points=1000):
     plt.grid()
     plt.legend()
     plt.show()
+    root.deiconify()
+
 
 def on_plot_button_click():
-    func_input = entry.get()
-    plot_function(func_input)
+    root.withdraw()  # Скрываем root вместо уничтожения
+    root4 = tk.Tk()
+    root4.title("Построение графика")
+    root4.geometry("600x140")
 
+    label = tk.Label(root4, text="Введите функцию для построения графика")
+    label.pack(pady=10)
+
+    entry = tk.Entry(root4, width=50)
+    entry.pack(pady=10)
+
+    def on_submit():
+        func_input = entry.get()
+        root4.destroy()
+        plot_function(func_input)
+
+    submit_button = tk.Button(root4, text="Построить график", command=on_submit)
+    submit_button.pack(pady=10)
+
+    root4.mainloop()
 root = tk.Tk()
 root.title("CN-MATH")
 screen_width = root.winfo_screenwidth()
@@ -156,11 +171,47 @@ def open():
     solve_button.pack()
     root1.mainloop()
 
-label = tk.Label(root, text="Введите функцию для построения графика")
-label.place(x=100, y=130)
+def calc():
+    def calculate(entry, output_label):
+        try:
+            expression = entry.get()
+            result = eval(expression)  # Вычисляем выражение (опасно для произвольного кода!)
+            output_label.config(text=f"Результат: {result}")
+        except SyntaxError:
+            messagebox.showerror("Ошибка", "Неверный синтаксис выражения!")
+        except ZeroDivisionError:
+            messagebox.showerror("Ошибка", "Деление на ноль!")
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Ошибка вычисления: {e}")
 
-entry = tk.Entry(root, width=50)
-entry.place(x=100, y=160)
+    def create_calculator(window):
+        window.title("Калькулятор")
+        window.geometry("400x200")
+
+        # Поле ввода
+        entry_label = tk.Label(window, text="Введите математический пример:")
+        entry_label.pack(pady=10)
+
+        entry = tk.Entry(window, width=40)
+        entry.pack(pady=5)
+
+        # Кнопка вычисления
+        calculate_button = tk.Button(
+            window,
+            text="Вычислить",
+            command=lambda: calculate(entry, output_label)
+        )
+        calculate_button.pack(pady=10)
+
+        # Поле вывода результата
+        output_label = tk.Label(window, text="Результат: ")
+        output_label.pack(pady=10)
+
+    # Пример использования:
+    if __name__ == "__main__":
+        root5 = tk.Tk()  # Создаём окно
+        create_calculator(root5)  # Передаём его в функцию
+        root5.mainloop()
 
 
 button = tk.Button(root, text="Выключить", height=4, width=20, fg='#000',
@@ -185,7 +236,7 @@ button3.place(x=1160, y=200)
 
 button4 = tk.Button(root, text="Калькулятор", height=6, width=28, fg='#000',
                     bg='#fff', activebackground='#000',
-                    activeforeground='#000', cursor='hand2',)
+                    activeforeground='#000', cursor='hand2',command=calc)
 button4.place(x=671, y=550)
 
 
